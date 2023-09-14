@@ -1,0 +1,11 @@
+{0., Indeterminate}
+{0.1, Indeterminate}
+{0.2, Indeterminate}
+{0.3, Indeterminate}
+{0.4, Indeterminate}
+{0.5, Indeterminate}
+{0.6, Indeterminate}
+{0.7, Indeterminate}
+{0.8, Indeterminate}
+{0.9, Indeterminate}
+{1., Indeterminate}
