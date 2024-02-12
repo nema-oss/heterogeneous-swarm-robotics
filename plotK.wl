@@ -36,7 +36,38 @@ CompareInitialConditionsK::usage="CompareInitialConditionsK[za_, path_]"
 GetAveragedMetrics::usage="GetAveragedMetrics[za, path1, path2, path3, n, G] returns the averaged metrics in a list built as {accuracies, regrets, convergenceTimes}"
 
 
+PlotRegret::usage="PlotRegret[path_, k_,za_] returns a plot of the regret as a ListDensityPlot"
+
+
 Begin["`Private`"];
+
+
+PlotRegret[path_, k_,za_]:=Module[{regretValueList = {}},
+awinspoints = ToExpression[StringSplit[Import[path<>"a_wins_points_k_"<>ToString[NumberDigit[k, 0]]<>"_"<>ToString[NumberDigit[k, -1]]<>"_"<>ToString[NumberDigit[k, -2]]<>"_za_"<>ToString[NumberDigit[za,0]]<>"_"<>ToString[NumberDigit[za,-1]]<>"_"<>ToString[NumberDigit[za,-2]]<>".txt"],"\n"]];
+bwinspoints =ToExpression[StringSplit[ Import[path<>"b_wins_points_k_"<>ToString[NumberDigit[k, 0]]<>"_"<>ToString[NumberDigit[k, -1]]<>"_"<>ToString[NumberDigit[k, -2]]<>"_za_"<>ToString[NumberDigit[za,0]]<>"_"<>ToString[NumberDigit[za,-1]]<>"_"<>ToString[NumberDigit[za,-2]]<>".txt"],"\n"]];
+deadlockpoints =ToExpression[StringSplit[Import[path<>"deadlock_points_k_"<>ToString[NumberDigit[k, 0]]<>"_"<>ToString[NumberDigit[k, -1]]<>"_"<>ToString[NumberDigit[k, -2]]<>"_za_"<>ToString[NumberDigit[za,0]]<>"_"<>ToString[NumberDigit[za,-1]]<>"_"<>ToString[NumberDigit[za,-2]]<>".txt"],"\n"]];
+
+Do[
+AppendTo[regretValueList,{awinspoints[[i]][[1]], awinspoints[[i]][[2]], 0}];
+,{i, 1, Length[awinspoints]}];
+Do[
+AppendTo[regretValueList,{bwinspoints[[i]][[1]], bwinspoints[[i]][[2]], 1- bwinspoints[[i]][[2]]}];
+,{i, 1, Length[bwinspoints]}];
+Do[
+AppendTo[regretValueList,{deadlockpoints[[i]][[1]], deadlockpoints[[i]][[2]], 1}];
+,{i, 1, Length[deadlockpoints]}];
+
+plt2 = ListDensityPlot[regretValueList, ColorFunction->"BlueGreenYellow",Frame->True, PlotLabel->Style["k="<>ToString[k], Bold, Black, 24],
+							FrameTicks->{True,True},
+							 ImageSize->Medium, PlotRange->All,PlotRangeClipping->False,
+ColorFunctionScaling->True,ClippingStyle->Automatic, PlotRangePadding -> {0.005, 0.01}, FrameLabel->{Style["\!\(\*SubscriptBox[\(z\), \(b\)]\)",Bold, 24, Black, Italic],Style["q",Bold, 24, Black, Italic]
+							(*Row[{
+								 Style["quality ratio (", Bold, 72, Black],
+								  Style["q", Bold, 72, FontSlant -> Italic, Black],
+								    Style[")", Bold, 72, Black]
+								  }]*)}];
+plt2
+]
 
 
 CognitiveCost[za_, path_, Gs_:{4,6,8}, N_:100, kRange_:{0,1,0.1}]:=Module[{measures = ExtractK[za, path, {0,1,0.1}]}, 
@@ -81,12 +112,12 @@ If[Length[awinspoints]>0, If[Length[bwinspoints]>0, If[Length[deadlockpoints]>0,
 								  Style["q", Bold, 72, FontSlant -> Italic, Black],
 								    Style[")", Bold, 72, Black]
 								  }]}, 
-							ImageSize->Full, LabelStyle->Directive[Black, Large, Bold], 
-							PlotMarkers->{"\[FilledCircle]", 20},
+							ImageSize->Full, LabelStyle->Directive[Black, Large], 
+							PlotMarkers->{"\[FilledCircle]", 30},
 							AspectRatio->1,
 							Frame->True,
 							FrameTicks->True,
-							FrameTicksStyle->Directive[Black,72, Bold],
+							FrameTicksStyle->Directive[Black,72],
 							PlotRangePadding -> {Automatic, 0.02}
 							]];
 							Legended[plot, Placed[legend, Above]];
@@ -350,17 +381,17 @@ AppendTo[stds, {k,std}];
 updatedTimeList={};
 averageConvergenceTime = 0;
 deltaT = 1000;
-
+counter=0;
 (*Do[
 If[convergenceTimeList[[j]][[3]]>=deltaT, AppendTo[updatedTimeList, {convergenceTimeList[[j]][[1]], convergenceTimeList[[j]][[2]], deltaT}]; averageConvergenceTime+=deltaT, AppendTo[updatedTimeList, convergenceTimeList[[j]]]; averageConvergenceTime+=convergenceTimeList[[j]][[3]]];
 ,{j, 1, Length[convergenceTimeList]}];
 AppendTo[convergenceTimes, {k,averageConvergenceTime/Length[convergenceTimeList]}];
 AppendTo[convergenceTimesLists, updatedTimeList];*)
 
-Do[If[convergenceTimeList[[j]][[3]]<deltaT, averageConvergenceTime+=convergenceTimeList[[j]][[3]]];
+Do[If[convergenceTimeList[[j]][[3]]<deltaT, averageConvergenceTime+=convergenceTimeList[[j]][[3]];counter+=1;];
 ,{j, 1, Length[convergenceTimeList]}];
 AppendTo[convergenceTimesLists,Cases[convergenceTimeList, {_, _, x_} /; x <deltaT]];
-AppendTo[convergenceTimes, {k,averageConvergenceTime/Length[Cases[convergenceTimeList, {_, _, x_} /; x <deltaT]]}];
+AppendTo[convergenceTimes, {k,averageConvergenceTime/counter}];
 , {k,kRange[[1]],kRange[[2]],kRange[[3]]}];
 {accuracies, regrets, convergenceTimes, stds, convergenceTimesLists, inaccuracies, indecisions}
  ]
@@ -404,7 +435,7 @@ timeList = Join[timeList1, timeList3];
 onlyTimeList = timeList[[All,3]];
 ct = Total[onlyTimeList]/Length[onlyTimeList];*)
 ct = Total[timeList1[[All,3]]]/Length[timeList1];
-cost=ct*(k+(1-k)*G);
+cost=m1[[3]][[k*20+1]]*(k+(1-k)*G);
 AppendTo[accuracies, {k, a}];
 AppendTo[regrets, {k,r}];
 AppendTo[convergenceTimes, {k, ct}];
