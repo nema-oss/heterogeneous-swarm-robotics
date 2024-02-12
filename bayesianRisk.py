@@ -69,6 +69,7 @@ def getMetrics(path1, g, tmax, mode, zName):
     avgTimes = []
     costs=[]
     timesList = [] #1 per k
+    print("mode=", mode)
     for k in np.arange(0.001,1.05,0.05):
         if zName=="za_0":
             suffix ="_k_"+str(k)[0]+"_"+str(k)[2]+"_"+str(k)[3]+"_za_0_0_0.txt"
@@ -100,8 +101,9 @@ def getMetrics(path1, g, tmax, mode, zName):
             elif time<tmax:
                 convergenceTimesListMoreA.append(time)
 
-
-        avgTime = sum([float(x) for x in convergenceTimesListMoreA])/len(convergenceTimesListMoreA)
+        if round(k,2)==0:
+            print(len(convergenceTimesListMoreA))
+        avgTime = sum(convergenceTimesListMoreA)/len(convergenceTimesListMoreA)
 
         avgTimes.append(avgTime)
 
@@ -115,10 +117,10 @@ def getMetrics(path1, g, tmax, mode, zName):
     return [accuracies, avgTimes, costs, timesList, regrets]
 
 #returns the BR and the minima of a model
-def compute_BR_and_minima(name, G, tmax, zName):
+def compute_BR_and_minima(name, G, tmax, zName, mode):
     path1 = name+"/more_a/" + zName+ "/"
     metrics = getMetrics(path1, G, tmax, mode, zName)
-    accuracies = metrics[0]
+    accuracies = metrics[0] #ordered from k=0 to k=1
     times = metrics[1]
     costs = metrics[2]
     timesList = metrics[3] 
@@ -131,18 +133,27 @@ def compute_BR_and_minima(name, G, tmax, zName):
     for h in np.arange(0, 1000.1, 0.1):
         minimumBR = np.infty
         minimumBRPoint = [-1,-1]
-        for k in np.arange(0, 1.05, 0.05):
+        for k in np.arange(1.0, -0.05, -0.05):
             #if "chci" in name:
-            br = costs[int(k*20)] + h * (regrets[int(k*20)])
+            intk=abs(round(k,2))
+            br = costs[int(intk*20)] + h * (regrets[int(intk*20)])
             #elif "chds" in name:
             #    br = costs[int(k*20)] + h * (1-accuracies[int(k*20)])
             if br<minimumBR:
                 minimumBR = br
-                minimumBRPoint = [round(k,2), round(h,2)]
+                minimumBRPoint = [intk, round(h,2)]
+            if h==1000:
+                print(br, intk)
+        minima.append(minimumBRPoint)
+
+        for k in np.arange(0, 1.05, 0.05):
+            #if "chci" in name:
+            br = costs[int(round(k,2)*20)] + h * (regrets[int(round(k,2)*20)])
+            #elif "chds" in name:
+            #    br = costs[int(k*20)] + h * (1-accuracies[int(k*20)])
             hList.append(round(h,2))
             kList.append(round(k,2))
             brList.append(br)
-        minima.append(minimumBRPoint)
         #if minimumBRPoint[0]>=1.0:
          #   print("for k=1, h=", minimumBRPoint[1])
     print(max(brList))
@@ -152,11 +163,12 @@ def compute_BR_and_minima(name, G, tmax, zName):
 def plotBR(name, G, tmax, zName, za, mode="AB"):
     
     path2 = name +"/more_b/" + zName+ "/"
-
+    maxH = 1000
+    hstep = 0.1
     #metrics = getAveragedMetrics(path1, path2, G, tmax, mode)
     
-    kList, hList, brList, minima = compute_BR_and_minima(name, G, tmax, zName)
-    bayesianRiskMatrix = np.array(brList).reshape(10001,21)
+    kList, hList, brList, minima = compute_BR_and_minima(name, G, tmax, zName, mode)
+    bayesianRiskMatrix = np.array(brList).reshape(int(maxH/hstep)+1,21)
     data = pd.DataFrame({'k': kList,'h': hList, 'br': brList})
     #sns.set()
     data_pivoted = data.pivot(columns="k", index="h", values="br")
@@ -179,7 +191,7 @@ def plotBR(name, G, tmax, zName, za, mode="AB"):
     #x_min_big, y_min_big = (idx_min_big % (1000*21))/21, 1000-(idx_min_big//(1000*21))/1000
     
     ax.scatter([x[0]*20 for x in minima], [y[1]*10 for y in minima], s=140, c="red")
-
+    
     ax.invert_yaxis()
     for ind, label in enumerate(ax.get_yticklabels()):
         if (ind % 10 == 0):  # every 10th label is kept
@@ -252,7 +264,7 @@ def plot_br_and_minima(name, zName, za,GList=[4,6,8,10]):
         name_=name+"/G_"+str(G)   
         minimumBRList.append(getMinimumBR(name_, G, tmax, zName, za, "AB"))
     fig, ax = plt.subplots(figsize=(10, 12))
-    for minima, color, name in zip(minimumBRList, ["red", "blue", "green", "purple"], ["4", "6", "8", "10"]):
+    for minima, color, name in zip(minimumBRList, ["green", "blue", "red", "purple"], ["4", "6", "8", "10"]):
         ax.scatter([x[0] for x in minima], [y[1] for y in minima], c=color, label=name)
 
     ax.tick_params(labelsize=30)
@@ -278,7 +290,7 @@ def plot_br_and_minima(name, zName, za,GList=[4,6,8,10]):
 
 #h < (c_(k+0.05)-c_k)/(alpha_k-alpha_(k+0.05)) for each k in [0,0.95, 0.05]
 
-tmax=1000
+tmax=100
 G=8
 
 zName = "za_0_0_5"
@@ -290,26 +302,27 @@ metrics = getMetrics(path1, G, tmax, mode, zName) #[accuracies, avgTimes, costs,
 [accuracies, avgTimes, costs, timesList, regrets] = metrics
 h_minima = []
 
+
 names = ["chds", "chci"]
 znames = ["za_0", "za_0_0_5"]
 for name in names:
     for zName,za in zip(znames, [0,0.05]):
         print(name+" "+zName)
-        plotBR(name+"/G_8", G, tmax, zName, za, mode="AB")
+        plotBR(name+"/G_8", G, tmax, zName, za, mode)
         #break
         #plot_br_and_minima(name, zName, za)
     #break
-'''
+
 for k in range(20):
     h_minima.append((costs[k+1]-costs[k])/(accuracies[k+1]-accuracies[k]))
 print(h_minima)
 
 
 
-for G in [4,6,8,10]:
+'''for G in [4,6,8,10]:
     name = "chds/G_"+str(G)
+for name in ["chds", "chci"]:
     for za, zName in zip([0, 0.05], ["za_0", "za_0_0_5"]):
-        plotBR(name, G, tmax, zName, za, mode="AB")
-        break
-    break
-'''
+        plot_br_and_minima(name, zName, za)'''
+
+
